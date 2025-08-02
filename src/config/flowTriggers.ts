@@ -26,6 +26,10 @@ export const FLOW_TRIGGER_KEYWORDS = [
 // Se definido como true, qualquer mensagem ativará o flow na primeira mensagem
 export const ACTIVATE_WITH_ANY_WORD = true;
 
+// Configuração para ativar o flow com qualquer mensagem, mesmo frases de campanha
+// Se definido como true, o flow será ativado para TODAS as mensagens
+export const ACTIVATE_FLOW_WITH_ALL_MESSAGES = true;
+
 // Função para verificar se uma mensagem contém palavra-chave
 export const containsTriggerKeyword = (message: string): boolean => {
   // Se ACTIVATE_WITH_ANY_WORD estiver ativado, qualquer mensagem é considerada palavra-chave

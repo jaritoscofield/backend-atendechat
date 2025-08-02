@@ -1868,13 +1868,28 @@ const flowbuilderIntegration = async (
     console.log("🔍 [FLOW DEBUG] Palavra-chave encontrada:", keywordFound);
   }
   
-  // Ativa o flow para qualquer mensagem quando ACTIVATE_WITH_ANY_WORD está ativo
+  // NOVA LÓGICA: Ativa o flow para qualquer mensagem quando ACTIVATE_WITH_ANY_WORD está ativo
   // OU para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
-  if (
-    isTriggerKeyword || // Qualquer palavra quando ACTIVATE_WITH_ANY_WORD está ativo
-    (!isFirstMsg && isNotCampaignPhrase) // Mensagens subsequentes que não são frases de campanha
-  ) {
+  // OU para TODAS as mensagens quando ACTIVATE_FLOW_WITH_ALL_MESSAGES está ativo
+  const { ACTIVATE_FLOW_WITH_ALL_MESSAGES } = await import("../../config/flowTriggers");
+  
+  let shouldActivateFlow = false;
+  
+  if (ACTIVATE_FLOW_WITH_ALL_MESSAGES) {
+    // Se ACTIVATE_FLOW_WITH_ALL_MESSAGES está ativo, ativa o flow para TODAS as mensagens
+    shouldActivateFlow = true;
+    console.log("🔍 [FLOW DEBUG] ACTIVATE_FLOW_WITH_ALL_MESSAGES ativo - ativando flow para todas as mensagens");
+  } else {
+    // Lógica original
+    shouldActivateFlow = isTriggerKeyword || // Qualquer palavra quando ACTIVATE_WITH_ANY_WORD está ativo
+      (!isFirstMsg && isNotCampaignPhrase); // Mensagens subsequentes que não são frases de campanha
+  }
+  
+  console.log("🔍 [FLOW DEBUG] Deve ativar flow:", shouldActivateFlow);
+  
+  if (shouldActivateFlow) {
     console.log("🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!");
+    console.log("🔍 [FLOW DEBUG] whatsapp.flowIdWelcome:", whatsapp.flowIdWelcome);
     const flow = await FlowBuilderModel.findOne({
       where: {
         id: whatsapp.flowIdWelcome
