@@ -1,127 +1,105 @@
-# 🚀 FLOW ATIVA COM QUALQUER PALAVRA - CONFIGURADO!
+# Flow Ativa Com Qualquer Palavra
 
-## ✅ **Nova Funcionalidade Implementada**
+## Descrição
+Esta funcionalidade permite que o flow seja ativado com **qualquer palavra** enviada pelo usuário, não apenas com palavras-chave específicas.
 
-O flow agora pode ser ativado com **QUALQUER palavra** na primeira mensagem, mantendo a compatibilidade com o sistema de palavras-chave!
+## Como Funciona
 
-## 🔧 **Como Funciona Agora**
+### Configuração
+A funcionalidade é controlada pela constante `ACTIVATE_WITH_ANY_WORD` no arquivo `src/config/flowTriggers.ts`:
 
-### **Configuração Atual:**
-- **`ACTIVATE_WITH_ANY_WORD = true`** - Qualquer mensagem ativa o flow
-- **`ACTIVATE_WITH_ANY_WORD = false`** - Apenas palavras-chave específicas ativam o flow
-
-### **Comportamento:**
-1. **Primeira mensagem**: Se `ACTIVATE_WITH_ANY_WORD = true`, qualquer palavra ativa o flow
-2. **Mensagens subsequentes**: Flow ativa se não for frase de campanha
-3. **Compatibilidade**: Sistema de palavras-chave ainda funciona se desabilitado
-
-## 📝 **Código Modificado:**
-
-### **1. Arquivo de Configuração (`src/config/flowTriggers.ts`):**
 ```typescript
-// Configuração para ativar o flow com qualquer palavra
-export const ACTIVATE_WITH_ANY_WORD = true;
+export const ACTIVATE_WITH_ANY_WORD = true; // true = ativa com qualquer palavra
+```
 
-// Função modificada para considerar a configuração
+### Lógica de Ativação
+Quando `ACTIVATE_WITH_ANY_WORD` está definido como `true`:
+
+1. **Para TODAS as mensagens**: Qualquer palavra enviada pelo usuário ativará o flow
+2. **Comportamento anterior**: Apenas palavras-chave específicas ativavam o flow na primeira mensagem
+
+### Código Modificado
+
+#### 1. `src/config/flowTriggers.ts`
+```typescript
+// Função para verificar se uma mensagem contém palavra-chave
 export const containsTriggerKeyword = (message: string): boolean => {
   // Se ACTIVATE_WITH_ANY_WORD estiver ativado, qualquer mensagem é considerada palavra-chave
   if (ACTIVATE_WITH_ANY_WORD) {
     return true;
   }
   
-  // Lógica original de palavras-chave
+  // Lógica original para palavras-chave específicas
   const messageLower = message.toLowerCase();
   return FLOW_TRIGGER_KEYWORDS.some(keyword => 
     messageLower.includes(keyword.toLowerCase())
   );
 };
+
+// Função para obter a palavra-chave encontrada
+export const getTriggerKeyword = (message: string): string | null => {
+  // Se ACTIVATE_WITH_ANY_WORD estiver ativado, retorna a própria mensagem
+  if (ACTIVATE_WITH_ANY_WORD) {
+    return message;
+  }
+  
+  // Lógica original
+  const messageLower = message.toLowerCase();
+  const foundKeyword = FLOW_TRIGGER_KEYWORDS.find(keyword => 
+    messageLower.includes(keyword.toLowerCase())
+  );
+  return foundKeyword || null;
+};
 ```
 
-### **2. Lógica Principal (`src/services/WbotServices/wbotMessageListener.ts`):**
+#### 2. `src/services/WbotServices/wbotMessageListener.ts`
 ```typescript
-// Verificar se é primeira mensagem e contém palavra-chave OU se não é primeira mensagem e não é frase de campanha
-const isTriggerKeyword = containsTriggerKeyword(body);
-const isNotCampaignPhrase = listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0;
-
-// Ativa o flow para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
+// Ativa o flow para qualquer mensagem quando ACTIVATE_WITH_ANY_WORD está ativo
+// OU para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
 if (
-  (isFirstMsg && isTriggerKeyword) ||
-  (!isFirstMsg && isNotCampaignPhrase)
+  isTriggerKeyword || // Qualquer palavra quando ACTIVATE_WITH_ANY_WORD está ativo
+  (!isFirstMsg && isNotCampaignPhrase) // Mensagens subsequentes que não são frases de campanha
 ) {
   // Executa o flow
 }
 ```
 
-## 🎯 **Como Testar:**
+## Como Testar
 
-### **1. Reinicie o servidor:**
-```bash
-npm run dev:server
-```
+1. **Configure o flow no banco de dados**:
+   ```sql
+   UPDATE Whatsapps SET flowIdWelcome = [ID_DO_SEU_FLOW] WHERE id = [ID_DO_WHATSAPP];
+   ```
 
-### **2. Envie QUALQUER mensagem no WhatsApp:**
-- "oi" ✅
-- "teste" ✅
-- "123" ✅
-- "qualquer coisa" ✅
-- Emoji ✅
-- Imagem ✅
+2. **Envie qualquer mensagem** para o WhatsApp conectado
+3. **Verifique os logs** para confirmar a ativação:
+   ```
+   🔍 [FLOW DEBUG] Contém palavra-chave: true
+   🔍 [FLOW DEBUG] Palavra-chave encontrada: [mensagem_enviada]
+   🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!
+   ```
 
-### **3. Verifique os logs:**
-```
-🔍 [FLOW DEBUG] É primeira mensagem: true
-🔍 [FLOW DEBUG] Contém palavra-chave: true
-🔍 [FLOW DEBUG] Palavra-chave encontrada: oi
-🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!
-```
+## Como Desativar
 
-## ⚙️ **Configurações Disponíveis:**
+Para voltar ao comportamento original (apenas palavras-chave específicas):
 
-### **Para Ativar com Qualquer Palavra:**
-```typescript
-// src/config/flowTriggers.ts
-export const ACTIVATE_WITH_ANY_WORD = true;
-```
+1. **Edite** `src/config/flowTriggers.ts`
+2. **Altere** `ACTIVATE_WITH_ANY_WORD` para `false`:
+   ```typescript
+   export const ACTIVATE_WITH_ANY_WORD = false;
+   ```
 
-### **Para Voltar ao Sistema de Palavras-Chave:**
-```typescript
-// src/config/flowTriggers.ts
-export const ACTIVATE_WITH_ANY_WORD = false;
-```
+## Palavras-Chave Originais
 
-## 🔄 **Palavras-Chave Originais (quando ACTIVATE_WITH_ANY_WORD = false):**
-- "oi", "olá", "ola"
-- "hello", "hi"
-- "ajuda", "help"
-- "iniciar", "começar", "start"
+Quando `ACTIVATE_WITH_ANY_WORD` está `false`, apenas estas palavras ativam o flow:
+- "oi", "olá", "ola", "hello", "hi"
+- "ajuda", "help", "iniciar", "começar", "start"
 - "bom dia", "boa tarde", "boa noite"
-- "atendimento", "suporte"
-- "informação", "informacoes"
-- "quero saber", "preciso de ajuda"
-- "como funciona"
+- "atendimento", "suporte", "informação", "informacoes"
+- "quero saber", "preciso de ajuda", "como funciona"
 
-## 🚨 **Importante:**
+## Importante
 
-- O flow ainda precisa estar configurado no banco de dados
-- O `flowIdWelcome` precisa estar associado ao WhatsApp
-- Se não tiver flow configurado, não vai funcionar
-- A configuração `ACTIVATE_WITH_ANY_WORD` controla o comportamento
-
-## 📋 **Comandos SQL para Configurar:**
-
-```sql
--- 1. Verificar se o WhatsApp tem flow configurado
-SELECT w.id, w.name, w."flowIdWelcome", f.name as flow_name
-FROM "Whatsapps" w
-LEFT JOIN "FlowBuilders" f ON w."flowIdWelcome" = f.id
-WHERE w.id = 1;
-
--- 2. Configurar flow se necessário
-UPDATE "Whatsapps" SET "flowIdWelcome" = 1 WHERE id = 1;
-```
-
----
-
-**Status: ✅ CONFIGURADO E FUNCIONANDO!**
-
-Agora o flow ativa com qualquer palavra na primeira mensagem, mantendo toda a compatibilidade com o sistema existente! 🎉 
+- **Configuração do Flow**: Certifique-se de que o `flowIdWelcome` está configurado corretamente na tabela `Whatsapps`
+- **Logs**: Use os logs de debug para verificar se o flow está sendo ativado corretamente
+- **Compatibilidade**: Esta funcionalidade não quebra o comportamento existente quando desativada 

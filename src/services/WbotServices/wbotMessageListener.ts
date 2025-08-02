@@ -1863,15 +1863,16 @@ const flowbuilderIntegration = async (
   console.log("🔍 [FLOW DEBUG] Mensagem recebida:", body);
   
   // Log adicional para mostrar a configuração ativa
-  if (isTriggerKeyword && isFirstMsg) {
+  if (isTriggerKeyword) {
     const keywordFound = getTriggerKeyword(body);
     console.log("🔍 [FLOW DEBUG] Palavra-chave encontrada:", keywordFound);
   }
   
-  // Ativa o flow para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
+  // Ativa o flow para qualquer mensagem quando ACTIVATE_WITH_ANY_WORD está ativo
+  // OU para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
   if (
-    (isFirstMsg && isTriggerKeyword) ||
-    (!isFirstMsg && isNotCampaignPhrase)
+    isTriggerKeyword || // Qualquer palavra quando ACTIVATE_WITH_ANY_WORD está ativo
+    (!isFirstMsg && isNotCampaignPhrase) // Mensagens subsequentes que não são frases de campanha
   ) {
     console.log("🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!");
     const flow = await FlowBuilderModel.findOne({
