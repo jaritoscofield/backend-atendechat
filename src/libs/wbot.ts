@@ -115,37 +115,10 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
           shouldIgnoreJid: jid => isJidBroadcast(jid),
         });
 
-        // Adicionar listener para erros de stream
-        wsocket.ev.on("stream:error", async (error) => {
-          logger.error(`Stream error for session ${name}:`, error);
-          
-          // Verificar se é um conflito de sessão
-          if (error?.node?.content?.[0]?.tag === "conflict" && 
-              error?.node?.content?.[0]?.attrs?.type === "replaced") {
-            logger.warn(`Session conflict detected for ${name}. Clearing session data.`);
-            
-            // Limpar dados da sessão e tentar reconectar
-            await whatsapp.update({ 
-              status: "PENDING", 
-              session: "",
-              qrcode: "" 
-            });
-            await DeleteBaileysService(whatsapp.id);
-            
-            io.to(`company-${whatsapp.companyId}-mainchannel`).emit(`company-${whatsapp.companyId}-whatsappSession`, {
-              action: "update",
-              session: whatsapp
-            });
-            
-            removeWbot(id, false);
-            
-            // Aguardar um pouco mais antes de tentar reconectar
-            setTimeout(
-              () => StartWhatsAppSession(whatsapp, whatsapp.companyId),
-              5000
-            );
-          }
-        });
+        // Listener para erros de stream (comentado devido a problemas de tipagem)
+        // wsocket.ev.on("stream:error", async (error) => {
+        //   logger.error(`Stream error for session ${name}:`, error);
+        // });
 
         wsocket.ev.on(
           "connection.update",
@@ -158,7 +131,8 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
             if (connection === "close") {
               // Verificar se é um conflito de sessão
               const isConflict = (lastDisconnect?.error as Boom)?.output?.statusCode === 403 ||
-                                (lastDisconnect?.error as any)?.node?.content?.[0]?.tag === "conflict";
+                                (lastDisconnect?.error as any)?.node?.content?.[0]?.tag === "conflict" ||
+                                (lastDisconnect?.error as any)?.message?.includes("conflict");
               
               if (isConflict) {
                 logger.warn(`Session conflict detected for ${name}. Clearing session data.`);
@@ -237,7 +211,6 @@ export const initWASocket = async (whatsapp: Whatsapp): Promise<Session> => {
                   session: whatsappUpdate
                 });
                 wsocket.ev.removeAllListeners("connection.update");
-                wsocket.ev.removeAllListeners("stream:error");
                 wsocket.ws.close();
                 wsocket = null;
                 retriesQrCodeMap.delete(id);
