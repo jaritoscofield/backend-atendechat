@@ -1853,13 +1853,26 @@ const flowbuilderIntegration = async (
   console.log("🔍 [FLOW DEBUG] !isFirstMsg:", !isFirstMsg);
   console.log("🔍 [FLOW DEBUG] Frase não encontrada em campanhas:", listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0);
   
-  // FLOW SEMPRE ATIVO - Qualquer mensagem ativa o flow
-  console.log("🔍 [FLOW DEBUG] FLOW SEMPRE ATIVO - Qualquer mensagem ativa o flow!");
+  // Verificar se é primeira mensagem e contém palavra-chave OU se não é primeira mensagem e não é frase de campanha
+  const isTriggerKeyword = containsTriggerKeyword(body);
+  const isNotCampaignPhrase = listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0;
+  
   console.log("🔍 [FLOW DEBUG] É primeira mensagem:", !!isFirstMsg);
+  console.log("🔍 [FLOW DEBUG] Contém palavra-chave:", isTriggerKeyword);
+  console.log("🔍 [FLOW DEBUG] Não é frase de campanha:", isNotCampaignPhrase);
   console.log("🔍 [FLOW DEBUG] Mensagem recebida:", body);
   
-  // Ativa o flow para QUALQUER mensagem recebida
-  if (true) {
+  // Log adicional para mostrar a configuração ativa
+  if (isTriggerKeyword && isFirstMsg) {
+    const keywordFound = getTriggerKeyword(body);
+    console.log("🔍 [FLOW DEBUG] Palavra-chave encontrada:", keywordFound);
+  }
+  
+  // Ativa o flow para primeira mensagem com palavra-chave OU mensagens subsequentes que não são frases de campanha
+  if (
+    (isFirstMsg && isTriggerKeyword) ||
+    (!isFirstMsg && isNotCampaignPhrase)
+  ) {
     console.log("🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!");
     const flow = await FlowBuilderModel.findOne({
       where: {
