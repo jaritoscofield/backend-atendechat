@@ -69,6 +69,7 @@ import { WebhookModel } from "../../models/Webhook";
 
 import {differenceInMilliseconds} from "date-fns";
 import Whatsapp from "../../models/Whatsapp";
+import { containsTriggerKeyword, getTriggerKeyword } from "../../config/flowTriggers";
 
 const request = require("request");
 
@@ -891,11 +892,11 @@ export const verifyMediaMessage = async (
   }
 
   try {
-    await writeFileAsync(
-      join(__dirname, "..", "..", "..", "public", media.filename),
-      Buffer.from(media.data, 'base64')
-    );
-  } catch (err) {
+await writeFileAsync(
+  join(__dirname, "..", "..", "..", "public", media.filename),
+  media.data
+);  
+} catch (err) {
     Sentry.captureException(err);
     logger.error(err);
   }
@@ -1118,22 +1119,32 @@ const verifyQueue = async (
     }
 
     //inicia integração dialogflow/n8n
+    console.log("🔍 [FLOW DEBUG] Verificando integração na fila...");
+    console.log("🔍 [FLOW DEBUG] integrationId:", queues[0]?.integrationId);
+    console.log("🔍 [FLOW DEBUG] !isNil(integrationId):", !isNil(queues[0]?.integrationId));
+    
     if (
       !msg.key.fromMe &&
       !ticket.isGroup &&
       !isNil(queues[0]?.integrationId)
     ) {
+      console.log("🔍 [FLOW DEBUG] Integração detectada! Buscando detalhes...");
       const integrations = await ShowQueueIntegrationService(
         queues[0].integrationId,
         companyId
       );
+
+      console.log("🔍 [FLOW DEBUG] Integração encontrada:", integrations.type);
 
       await handleMessageIntegration(
         msg,
         wbot,
         integrations,
         ticket,
-        companyId
+        companyId,
+        null,
+        null,
+        contact
       );
 
       await ticket.update({
@@ -1262,7 +1273,10 @@ const verifyQueue = async (
           wbot,
           integrations,
           ticket,
-          companyId
+          companyId,
+          null,
+          null,
+          contact
         );
 
         await ticket.update({
@@ -1756,6 +1770,12 @@ const flowbuilderIntegration = async (
   const quotedMsg = await verifyQuotedMessage(msg);
   const body = getBodyMessage(msg);
 
+  console.log("🔍 [FLOW DEBUG] flowbuilderIntegration iniciado");
+  console.log("🔍 [FLOW DEBUG] Mensagem:", body);
+  console.log("🔍 [FLOW DEBUG] Ticket ID:", ticket.id);
+  console.log("🔍 [FLOW DEBUG] isFirstMsg:", isFirstMsg);
+  console.log("🔍 [FLOW DEBUG] Queue Integration Type:", queueIntegration.type);
+
   /*
   const messageData = {
     wid: msg.key.id,
@@ -1816,30 +1836,45 @@ const flowbuilderIntegration = async (
 
   const whatsapp = await ShowWhatsAppService(wbot.id!, companyId);
 
+  console.log("🔍 [FLOW DEBUG] WhatsApp ID:", whatsapp.id);
+  console.log("🔍 [FLOW DEBUG] flowIdWelcome:", whatsapp.flowIdWelcome);
+  console.log("🔍 [FLOW DEBUG] flowIdNotPhrase:", whatsapp.flowIdNotPhrase);
+
   const listPhrase = await FlowCampaignModel.findAll({
     where: {
       whatsappId: whatsapp.id
     }
   });
 
-  // Welcome flow
-  if (
-    !isFirstMsg &&
-    listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0
-  ) {
+  console.log("🔍 [FLOW DEBUG] Frases de campanha encontradas:", listPhrase.length);
+
+  // Welcome flow - Ativado na primeira mensagem com palavra-chave ou em mensagens subsequentes
+  console.log("🔍 [FLOW DEBUG] Verificando Welcome Flow...");
+  console.log("🔍 [FLOW DEBUG] !isFirstMsg:", !isFirstMsg);
+  console.log("🔍 [FLOW DEBUG] Frase não encontrada em campanhas:", listPhrase.filter(item => item.phrase.toLowerCase() === body.toLowerCase()).length === 0);
+  
+  // FLOW SEMPRE ATIVO - Qualquer mensagem ativa o flow
+  console.log("🔍 [FLOW DEBUG] FLOW SEMPRE ATIVO - Qualquer mensagem ativa o flow!");
+  console.log("🔍 [FLOW DEBUG] É primeira mensagem:", !!isFirstMsg);
+  console.log("🔍 [FLOW DEBUG] Mensagem recebida:", body);
+  
+  // Ativa o flow para QUALQUER mensagem recebida
+  if (true) {
+    console.log("🔍 [FLOW DEBUG] Condições do Welcome Flow atendidas!");
     const flow = await FlowBuilderModel.findOne({
       where: {
         id: whatsapp.flowIdWelcome
       }
     });
+    console.log("🔍 [FLOW DEBUG] Flow encontrado:", !!flow);
     if (flow) {
       const nodes: INodes[] = flow.flow["nodes"];
       const connections: IConnections[] = flow.flow["connections"];
 
       const mountDataContact = {
-        number: contact.number,
-        name: contact.name,
-        email: contact.email
+        number: contact?.number || ticket.contact?.number || "",
+        name: contact?.name || ticket.contact?.name || "",
+        email: contact?.email || ticket.contact?.email || ""
       };
 
       // const worker = new Worker("./src/services/WebhookService/WorkerAction.ts");
@@ -1915,9 +1950,9 @@ const flowbuilderIntegration = async (
       const connections: IConnections[] = flow.flow["connections"];
 
       const mountDataContact = {
-        number: contact.number,
-        name: contact.name,
-        email: contact.email
+        number: contact?.number || ticket.contact?.number || "",
+        name: contact?.name || ticket.contact?.name || "",
+        email: contact?.email || ticket.contact?.email || ""
       };
 
       await ActionsWebhookService(
@@ -2123,6 +2158,10 @@ export const handleMessageIntegration = async (
 ): Promise<void> => {
   const msgType = getTypeMessage(msg);
 
+  console.log("🔍 [FLOW DEBUG] handleMessageIntegration iniciado");
+  console.log("🔍 [FLOW DEBUG] Queue Integration Type:", queueIntegration.type);
+  console.log("🔍 [FLOW DEBUG] isMenu:", isMenu);
+
   if (queueIntegration.type === "n8n" || queueIntegration.type === "webhook") {
     if (queueIntegration?.urlN8N) {
       const options = {
@@ -2200,9 +2239,9 @@ const flowBuilderQueue = async (
   });
 
   const mountDataContact = {
-    number: contact.number,
-    name: contact.name,
-    email: contact.email
+    number: contact?.number || ticket.contact?.number || "",
+    name: contact?.name || ticket.contact?.name || "",
+    email: contact?.email || ticket.contact?.email || ""
   };
 
   const nodes: INodes[] = flow.flow["nodes"];
@@ -2640,7 +2679,9 @@ const handleMessage = async (
         integrations,
         ticket,
         companyId,
-        isMenu
+        isMenu,
+        null,
+        contact
       );
 
       return;
@@ -2672,11 +2713,13 @@ const handleMessage = async (
         companyId
       );
 
+      // Verificar se é realmente a primeira mensagem do contato
       const isFirstMsg = await Ticket.findOne({
         where: {
           contactId: groupContact ? groupContact.id : contact.id,
           companyId,
-          whatsappId: whatsapp.id
+          whatsappId: whatsapp.id,
+          id: { [Op.lt]: ticket.id } // Busca tickets com ID menor que o atual
         },
         order: [["id", "DESC"]]
       });
@@ -2711,11 +2754,13 @@ const handleMessage = async (
       }
     }
 
+    // Verificar se é realmente a primeira mensagem do contato
     const isFirstMsg = await Ticket.findOne({
       where: {
         contactId: groupContact ? groupContact.id : contact.id,
         companyId,
-        whatsappId: whatsapp.id
+        whatsappId: whatsapp.id,
+        id: { [Op.lt]: ticket.id } // Busca tickets com ID menor que o atual
       },
       order: [["id", "DESC"]]
     });

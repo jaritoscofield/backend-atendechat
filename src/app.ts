@@ -1,3 +1,4 @@
+
 import "./bootstrap";
 import "reflect-metadata";
 import "express-async-errors";
@@ -12,7 +13,7 @@ import AppError from "./errors/AppError";
 import routes from "./routes";
 import { logger } from "./utils/logger";
 import { messageQueue, sendScheduledMessages } from "./queues";
-import bodyParser from 'body-parser';
+import bodyParser from "body-parser";
 
 Sentry.init({ dsn: process.env.SENTRY_DSN });
 
@@ -23,25 +24,36 @@ app.set("queues", {
   sendScheduledMessages
 });
 
-const bodyparser = require('body-parser');
-app.use(bodyParser.json({ limit: '10mb' }));
+// Suporte a payloads grandes
+app.use(bodyParser.json({ limit: "10mb" }));
+
+// ? CORS com domínio vindo do .env
+const frontendUrl = process.env.FRONTEND_URL;
 
 app.use(
   cors({
     credentials: true,
-    origin: process.env.FRONTEND_URL
+    origin: (origin, callback) => {
+      if (!origin || origin === frontendUrl) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
   })
 );
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(Sentry.Handlers.requestHandler());
 app.use("/public", express.static(uploadConfig.directory));
 app.use(routes);
-
 app.use(Sentry.Handlers.errorHandler());
 
+// ?? Tratamento global de erros
 app.use(async (err: Error, req: Request, res: Response, _: NextFunction) => {
-
   if (err instanceof AppError) {
     logger.warn(err);
     return res.status(err.statusCode).json({ error: err.message });

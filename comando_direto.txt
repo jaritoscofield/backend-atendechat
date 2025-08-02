@@ -1,0 +1,12 @@
+COMANDO DIRETO PARA EXECUTAR NO POWERSHELL:
+
+1. Primeiro, teste a conexao:
+$env:PGPASSWORD="atendechat-postgresql"
+psql -h 69.62.94.121 -U atendechatpostgresql -d atendechat-postgresql -c "SELECT version();"
+
+2. Se funcionar, execute o setup:
+$env:PGPASSWORD="atendechat-postgresql"
+psql -h 69.62.94.121 -U atendechatpostgresql -d atendechat-postgresql -f setup_flow.sql
+
+OU execute o script:
+.\test_connection.bat 
